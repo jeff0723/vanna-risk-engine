@@ -1,7 +1,7 @@
 //@ts-check
 import { ethers } from 'ethers'
 import fetch from 'node-fetch'
-import { std as calculateStandardDeviation } from 'mathjs'
+import { std as calculateStandardDeviation, mean } from 'mathjs'
 import { RISK_ENGINE_ABI, RISK_ENGINE_ADDRESS } from './constant.js'
 import dotenv from 'dotenv'
 dotenv.config()
@@ -10,6 +10,7 @@ const updateFeeByAddress = async (address) => {
     const provider = new ethers.providers.JsonRpcProvider('https://docs-demo.quiknode.pro/')
     const _blockNumber = await provider.getBlockNumber()
     const pricePromises = []
+    console.log('block number', _blockNumber)
     for (let currentBlock = _blockNumber; currentBlock > _blockNumber - 1000; currentBlock = currentBlock - 50) {
         pricePromises.push(fetch(graphqlUrl, {
             method: 'POST',
@@ -20,7 +21,7 @@ const updateFeeByAddress = async (address) => {
                 query: `query ($blockNumber: Int!) {
                 pool(
                   id: 
-              ${address}
+              "${address}"
                   block: {number: $blockNumber}
                 ) {
                   tick
@@ -43,15 +44,19 @@ const updateFeeByAddress = async (address) => {
     console.log(prices)
     const volatilityArray = []
 
-    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 5)))
-    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 10)))
-    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 20)))
+    //@ts-ignore
+    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 5)) / mean(prices.slice(0, 5)))
+    //@ts-ignore
+    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 10)) / mean(prices.slice(0, 10)))
+    //@ts-ignore
+    volatilityArray.push(calculateStandardDeviation(prices.slice(0, 20)) / mean(prices.slice(0, 20)))
 
     const inputData = JSON.stringify([volatilityArray])
     const network = {
         name: 'VANNA TESTNET', // You can use any name to identify the network
         chainId: 901, // Ganache chain ID, replace with the appropriate chain ID if necessary
     };
+    console.log('inputData', inputData)
     const vannaProvider = new ethers.providers.JsonRpcProvider('http://dev-rpc.vannalabs.ai:9545', network);
     const vannaWallet = new ethers.Wallet(process.env.PRIVATE_KEY || "", vannaProvider);
     const riskEngineContract = new ethers.Contract(RISK_ENGINE_ADDRESS, RISK_ENGINE_ABI, vannaWallet);
@@ -67,7 +72,7 @@ while (true) {
     for (let i = 0; i < pools.length; i++) {
         await updateFeeByAddress(pools[i])
     }
-    // await updateFeeByAddress()
+    await updateFeeByAddress()
     await new Promise(resolve => setTimeout(resolve, 10000));
 }
 // const tx = await vannaContract['getVolatility']()
