@@ -41,7 +41,7 @@ contract StringToInt {
 
 contract InferCallContract {
     function inferCall(
-        string calldata modelName,
+        string memory modelName,
         string calldata inputData
     ) public view returns (bytes32) {
         bytes32[2] memory output;
@@ -72,31 +72,68 @@ contract RiskEngine is InferCallContract, StringToInt {
     event RiskMetricUpdate(address _tokenAddress, uint256 _riskMetric);
     event ClassificationResultUpdate(
         address _tokenAddress,
-        uint256 _riskMetric
+        uint256 _classification
     );
     mapping(address => uint256) public riskMetricByAddress;
     mapping(address => uint256) public classificationResultByAddress;
 
-    function setClassificationResultByToken(
-        address tokenAddress,
-        string calldata modelName,
-        string calldata inputData
-    ) public {
-        bytes32 result = inferCall(modelName, inputData);
-        uint256 classificationResult = stringToInt(
-            string(abi.encodePacked(result)),
-            6
-        );
-        classificationResultByAddress[tokenAddress] = classificationResult;
-        emit ClassificationResultUpdate(tokenAddress, classificationResult);
-    }
-
     function setRiskMetricByToken(
         address tokenAddress,
-        string calldata modelName,
         string calldata inputData
     ) public {
-        bytes32 result = inferCall(modelName, inputData);
+        string memory classificationModelHash = string(
+            abi.encodePacked("QmYrQvh6ixW1oQUK5Lehjmqk5eSsthiUXwQVFQA7BDf9yv")
+        );
+        string memory classificationResult = string(
+            abi.encodePacked(inferCall(classificationModelHash, inputData))
+        );
+
+        string memory modalHash;
+        uint256 classification;
+        if (
+            keccak256(abi.encodePacked(classificationResult)) ==
+            keccak256(abi.encodePacked("0"))
+        ) {
+            modalHash = string(
+                abi.encodePacked(
+                    "QmcDnBi5PT223FmELECbZVTjitFUtTvaBoctDP88ESuAK4"
+                )
+            );
+            classification = 0;
+        }
+        if (
+            keccak256(abi.encodePacked(classificationResult)) ==
+            keccak256(abi.encodePacked("1"))
+        ) {
+            modalHash = string(
+                abi.encodePacked(
+                    "QmYbVUfuZq9ZA5rdbfKHs2LNMHQ7jCzLJmwHHeGqVaXmSQ"
+                )
+            );
+            classification = 1;
+        }
+        if (
+            keccak256(abi.encodePacked(classificationResult)) ==
+            keccak256(abi.encodePacked("2"))
+        ) {
+            modalHash = string(
+                abi.encodePacked(
+                    "QmXLNp8wHnjJHLHsUwJfxRSnAQhptUcMFsQJV9ouXQcPhr"
+                )
+            );
+            classification = 2;
+        } else {
+            modalHash = string(
+                abi.encodePacked(
+                    "QmcDnBi5PT223FmELECbZVTjitFUtTvaBoctDP88ESuAK4"
+                )
+            );
+            classification = 0;
+        }
+        classificationResultByAddress[tokenAddress] = classification;
+        emit ClassificationResultUpdate(tokenAddress, classification);
+
+        bytes32 result = inferCall(modalHash, inputData);
         uint256 riskMetric = stringToInt(string(abi.encodePacked(result)), 6);
         riskMetricByAddress[tokenAddress] = riskMetric;
         emit RiskMetricUpdate(tokenAddress, riskMetric);
